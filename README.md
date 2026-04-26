@@ -67,6 +67,8 @@ maintainerbench lint --json
 
 The lint command exits non-zero when high severity findings are present. The `eval` and `report` commands are still placeholders that define the intended command surface without performing agent execution or repository risk analysis.
 
+MaintainerBench also includes an internal worktree runner foundation for future `eval` work. It detects the current git repository, creates temporary detached worktrees under `.maintainerbench/runs/<run-id>/worktree`, runs argv-style commands with the process working directory set to that worktree, captures stdout, stderr, exit code, and duration, and can either keep or clean up the worktree. Full task evaluation and agent execution are not implemented yet.
+
 ## v0.1 Roadmap
 
 - Generate starter `AGENTS.md` files and repo-local skills.
