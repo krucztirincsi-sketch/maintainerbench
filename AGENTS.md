@@ -29,6 +29,15 @@ MaintainerBench provides guardrails and benchmark reports. It must be honest abo
 - Use `vitest` for tests.
 - Do not add production dependencies without a clear reason.
 
+## Development Commands
+
+- Setup: `pnpm install`
+- Build: `pnpm build`
+- Test: `pnpm test`
+- CLI package tests: `pnpm --filter @maintainerbench/cli test`
+- CLI package build: `pnpm --filter @maintainerbench/cli build`
+- Lint: there is no `pnpm lint` script yet; repository agent-workflow linting is handled through `pnpm exec maintainerbench lint` for now.
+
 ## v0.1 Scope Boundaries
 
 For v0.1, never introduce:
@@ -56,9 +65,9 @@ MaintainerBench may inspect files, lint configuration, run benchmark tasks, exec
 ## Development Requirements
 
 - All commands must have tests.
-- Every feature must include README or docs updates.
+- Every feature change must include tests and README or docs updates.
 - Keep changes focused on the CLI, GitHub Action, linting, benchmark, worktree, verification, diff analysis, and report-generation surfaces.
-- Run `pnpm test` before declaring work complete.
+- Agents must run relevant tests before declaring work complete.
+- Run `pnpm test` before declaring repository-wide work complete.
 - Do not weaken strict TypeScript settings to make implementation easier.
 - Keep reports clear about what was checked, what was skipped, and what risk remains.
-
