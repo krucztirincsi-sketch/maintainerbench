@@ -42,6 +42,10 @@ The eval worktree runner detects whether the current directory is inside a git r
 
 Runner cleanup uses the recorded run directory and refuses paths outside `.maintainerbench/runs/<run-id>`. By default, eval removes the temporary worktree and keeps the run directory for reports. A keep option leaves the worktree in place for inspection. Eval does not sandbox the child process beyond controlled worktree creation, shell command execution in the worktree, and `cwd` selection; commands can still access files permitted by the host operating system.
 
+## GitHub Action
+
+The v0.1 GitHub Action supports `mode: lint` only. It runs `maintainerbench lint --json`, prints a summary, and applies the configured `fail-on` threshold. It rejects `mode: eval` and does not run agent commands or call model APIs.
+
 ## Boundaries
 
 MaintainerBench must not approve, merge, or auto-accept pull requests. It must not call model APIs or send telemetry.

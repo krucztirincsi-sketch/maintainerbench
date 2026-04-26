@@ -197,11 +197,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run MaintainerBench lint placeholder
+      - name: Run MaintainerBench lint
         run: pnpm exec maintainerbench lint
-
-      - name: Render MaintainerBench report placeholder
-        run: pnpm exec maintainerbench report
 `
   }
 ];

@@ -67,6 +67,51 @@ maintainerbench lint --json
 
 The lint command exits non-zero when high severity findings are present.
 
+## GitHub Action
+
+MaintainerBench includes a v0.1 GitHub Action wrapper for CI lint checks:
+
+```yaml
+name: MaintainerBench
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  maintainerbench:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.31.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: ./packages/github-action
+        with:
+          mode: lint
+          fail-on: high
+```
+
+Until the action is published as a bundled release, use it from a checkout that has installed dependencies and run `pnpm build`, as shown above.
+
+Action inputs:
+
+- `mode`: `lint` or `eval`. v0.1 supports `lint` only; `eval` exits with a clear unsupported-mode error.
+- `task`: reserved for future eval support and ignored in lint mode.
+- `agent-command`: reserved for future eval support and never run by the v0.1 action.
+- `fail-on`: `warning`, `high`, or `never`.
+
+The action runs `maintainerbench lint --json`, prints a concise summary, and applies `fail-on` to decide whether the workflow fails. It does not run agent commands or call model APIs.
+
 `maintainerbench eval` runs one task YAML file in a temporary detached worktree and executes a maintainer-supplied external shell command:
 
 ```bash

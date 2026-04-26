@@ -28,8 +28,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run MaintainerBench lint placeholder
-        run: pnpm exec maintainerbench lint
+      - name: Build MaintainerBench packages
+        run: pnpm build
 
-      - name: Render MaintainerBench report placeholder
-        run: pnpm exec maintainerbench report
+      - name: Run MaintainerBench lint
+        uses: ./packages/github-action
+        with:
+          mode: lint
+          fail-on: high

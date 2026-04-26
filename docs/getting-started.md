@@ -33,4 +33,4 @@ maintainerbench init --dry-run
 maintainerbench init --force
 ```
 
-The generated config and workflow include placeholders for future GitHub Action behavior. The `lint` command scans repository-level AI-agent workflow files, and `eval` runs maintainer-supplied agent commands in temporary git worktrees. MaintainerBench does not modify pull requests, approve changes, merge, push, or guarantee security.
+The generated workflow runs `pnpm exec maintainerbench lint`; GitHub Action eval mode is not supported yet. The `lint` command scans repository-level AI-agent workflow files, and `eval` runs maintainer-supplied agent commands in temporary git worktrees. MaintainerBench does not modify pull requests, approve changes, merge, push, or guarantee security.

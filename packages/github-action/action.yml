@@ -1,10 +1,20 @@
 name: MaintainerBench
-description: Run MaintainerBench guardrail checks and benchmark reports.
+description: Run MaintainerBench guardrail checks in CI.
 inputs:
-  command:
-    description: MaintainerBench command to run after the action is packaged.
+  mode:
+    description: "MaintainerBench mode to run. v0.1 supports lint only."
     required: false
     default: lint
+  task:
+    description: "Benchmark task path. Reserved for future eval support and ignored in lint mode."
+    required: false
+  agent-command:
+    description: "Agent command. Reserved for future eval support and never run by this v0.1 action."
+    required: false
+  fail-on:
+    description: "Fail the workflow on warning findings, high findings, or never."
+    required: false
+    default: high
 runs:
   using: node20
   main: dist/index.js
