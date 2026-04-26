@@ -53,6 +53,13 @@ jobs:
             docs \
             examples
 
+      # 配置 git 用户
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # 创建并推送标签
       - name: Create a tag for the release
         run: |
           VERSION="v${GITHUB_SHA:0:7}"
