@@ -176,3 +176,5 @@ Action inputs:
 - [Task Format](docs/task-format.md)
 - [Safety Model](docs/safety-model.md)
 - [Codex Integration](docs/codex-integration.md)
+- [Changelog](CHANGELOG.md)
+- [v0.1.0 Release Notes](docs/releases/v0.1.0.md)
