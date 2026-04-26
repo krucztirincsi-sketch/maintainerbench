@@ -36,11 +36,11 @@ High severity findings include missing `AGENTS.md`, dangerous shell patterns, li
 
 Human-readable output is the default. `maintainerbench lint --json` emits parseable JSON for CI and tooling. The command exits non-zero when high severity findings are present.
 
-## Worktree Runner Foundation
+## Eval Worktree Runner
 
-The worktree runner foundation is intended for future `maintainerbench eval` support. It detects whether the current directory is inside a git repository, creates detached temporary git worktrees under `.maintainerbench/runs/<run-id>/worktree`, and runs commands with their working directory fixed to that worktree.
+The eval worktree runner detects whether the current directory is inside a git repository, creates detached temporary git worktrees under `.maintainerbench/runs/<run-id>/worktree`, and runs setup, agent, and verification commands with their working directory fixed to that worktree.
 
-Runner cleanup uses the recorded run directory and refuses paths outside `.maintainerbench/runs/<run-id>`. A keep option leaves the worktree in place for inspection. This foundation does not sandbox the child process beyond controlled worktree creation, argv-based spawning, and `cwd` selection; commands can still access files permitted by the host operating system.
+Runner cleanup uses the recorded run directory and refuses paths outside `.maintainerbench/runs/<run-id>`. A keep option leaves the worktree in place for inspection. Eval does not sandbox the child process beyond controlled worktree creation, shell command execution in the worktree, and `cwd` selection; commands can still access files permitted by the host operating system.
 
 ## Boundaries
 

@@ -1,0 +1,23 @@
+version: 1
+
+instructions: AGENTS.md
+
+tasks:
+  - .maintainerbench/tasks/example-bugfix.yml
+
+skills:
+  - .agents/skills/code-change-verification/SKILL.md
+  - .agents/skills/pr-review/SKILL.md
+  - .agents/skills/docs-sync/SKILL.md
+
+verify:
+  commands:
+    - pnpm test
+
+lint:
+  enabled: false
+  note: Placeholder for future MaintainerBench lint checks.
+
+eval:
+  enabled: false
+  note: Placeholder for future MaintainerBench benchmark execution.

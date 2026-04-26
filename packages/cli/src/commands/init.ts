@@ -93,11 +93,15 @@ eval:
 title: Example bugfix task
 description: |-
   Replace this example with a small, reviewable bugfix task for an AI coding agent.
-agent:
-  command: codex
+setup:
+  commands: []
 verify:
-  - run: pnpm test
-    timeoutSeconds: 120
+  commands:
+    - run: pnpm test
+      timeoutSeconds: 120
+risk:
+  max_files_changed: 20
+  require_tests: true
 `
   },
   {

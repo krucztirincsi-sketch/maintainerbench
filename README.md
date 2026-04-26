@@ -6,7 +6,7 @@ The project is intended to help maintainers generate repo-local agent instructio
 
 ## Status
 
-This repository is an initial v0.1 scaffold. The `init` command can create starter repository files for AI coding-agent workflows, and `lint` can scan repository-level agent workflow files for missing guidance and unsafe patterns. Agent execution, worktree orchestration, diff analysis, and report generation are not implemented yet.
+This repository is an initial v0.1 scaffold. The `init` command can create starter repository files for AI coding-agent workflows, `lint` can scan repository-level agent workflow files for missing guidance and unsafe patterns, and `eval` can run one benchmark task through an external shell command in a temporary git worktree.
 
 ## Install
 
@@ -65,9 +65,15 @@ maintainerbench lint
 maintainerbench lint --json
 ```
 
-The lint command exits non-zero when high severity findings are present. The `eval` and `report` commands are still placeholders that define the intended command surface without performing agent execution or repository risk analysis.
+The lint command exits non-zero when high severity findings are present.
 
-MaintainerBench also includes an internal worktree runner foundation for future `eval` work. It detects the current git repository, creates temporary detached worktrees under `.maintainerbench/runs/<run-id>/worktree`, runs argv-style commands with the process working directory set to that worktree, captures stdout, stderr, exit code, and duration, and can either keep or clean up the worktree. Full task evaluation and agent execution are not implemented yet.
+`maintainerbench eval` runs one task YAML file in a temporary detached worktree and executes a maintainer-supplied external shell command:
+
+```bash
+maintainerbench eval --task .maintainerbench/tasks/example-bugfix.yml --agent-command "<command>"
+```
+
+Eval runs task `setup.commands`, then the `--agent-command`, then `verify.commands`; collects changed files, diff summary, command output, exit codes, and elapsed time; applies basic risk rules; and prints a final `pass`, `fail`, or `risk` summary. It never commits, merges, pushes, approves, or calls model APIs directly. It is a guardrail and benchmark tool, not a complete security sandbox. The `report` command is still a placeholder.
 
 ## v0.1 Roadmap
 
