@@ -1,0 +1,23 @@
+{
+  "name": "maintainerbench-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CLI and GitHub Action guardrails for maintainers adopting AI coding agents.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.31.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm --recursive --if-present build",
+    "test": "vitest run",
+    "typecheck": "pnpm --recursive --if-present typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.25",
+    "maintainerbench": "workspace:*",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

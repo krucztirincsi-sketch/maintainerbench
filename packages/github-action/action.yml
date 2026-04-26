@@ -1,0 +1,10 @@
+name: MaintainerBench
+description: Run MaintainerBench guardrail checks and benchmark reports.
+inputs:
+  command:
+    description: MaintainerBench command to run after the action is packaged.
+    required: false
+    default: lint
+runs:
+  using: node20
+  main: dist/index.js
