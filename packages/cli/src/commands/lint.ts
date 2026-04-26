@@ -561,19 +561,15 @@ function checkPatternRules(file: InspectedFile, rules: readonly PatternRule[]): 
   const findings: LintFinding[] = [];
 
   for (const rule of rules) {
-    const match = rule.pattern.exec(file.content);
-
-    if (match === null) {
-      continue;
+    for (const matchIndex of findPatternMatchIndexes(file.content, rule.pattern)) {
+      findings.push({
+        id: rule.id,
+        severity: rule.severity,
+        file: file.relativePath,
+        line: getLineNumber(file.content, matchIndex),
+        message: rule.message
+      });
     }
-
-    findings.push({
-      id: rule.id,
-      severity: rule.severity,
-      file: file.relativePath,
-      line: getLineNumber(file.content, match.index),
-      message: rule.message
-    });
   }
 
   return findings;
@@ -583,19 +579,19 @@ function checkDangerousCommandRules(file: InspectedFile): LintFinding[] {
   const findings: LintFinding[] = [];
 
   for (const rule of dangerousCommandRules) {
-    const match = rule.pattern.exec(file.content);
+    for (const matchIndex of findPatternMatchIndexes(file.content, rule.pattern)) {
+      if (isSafetyOnlyReference(file.content, matchIndex)) {
+        continue;
+      }
 
-    if (match === null || isSafetyOnlyReference(file.content, match.index)) {
-      continue;
+      findings.push({
+        id: rule.id,
+        severity: rule.severity,
+        file: file.relativePath,
+        line: getLineNumber(file.content, matchIndex),
+        message: rule.message
+      });
     }
-
-    findings.push({
-      id: rule.id,
-      severity: rule.severity,
-      file: file.relativePath,
-      line: getLineNumber(file.content, match.index),
-      message: rule.message
-    });
   }
 
   return findings;
@@ -605,22 +601,39 @@ function checkSecretPathRules(file: InspectedFile): LintFinding[] {
   const findings: LintFinding[] = [];
 
   for (const rule of secretPathRules) {
-    const match = rule.pattern.exec(file.content);
+    for (const matchIndex of findPatternMatchIndexes(file.content, rule.pattern)) {
+      if (isSafetyOnlyReference(file.content, matchIndex)) {
+        continue;
+      }
 
-    if (match === null || isSafetyOnlyReference(file.content, match.index)) {
-      continue;
+      findings.push({
+        id: rule.id,
+        severity: rule.severity,
+        file: file.relativePath,
+        line: getLineNumber(file.content, matchIndex),
+        message: rule.message
+      });
     }
-
-    findings.push({
-      id: rule.id,
-      severity: rule.severity,
-      file: file.relativePath,
-      line: getLineNumber(file.content, match.index),
-      message: rule.message
-    });
   }
 
   return findings;
+}
+
+function findPatternMatchIndexes(content: string, pattern: RegExp): number[] {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  const globalPattern = new RegExp(pattern.source, flags);
+  const indexes: number[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = globalPattern.exec(content)) !== null) {
+    indexes.push(match.index);
+
+    if (match[0].length === 0) {
+      globalPattern.lastIndex += 1;
+    }
+  }
+
+  return indexes;
 }
 
 function isSafetyOnlyReference(content: string, index: number): boolean {

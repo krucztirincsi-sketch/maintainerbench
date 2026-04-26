@@ -1,0 +1,4 @@
+version: 1
+instructions: AGENTS.md
+tasks:
+  - .maintainerbench/tasks/example-bugfix.yml

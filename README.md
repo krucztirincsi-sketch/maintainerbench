@@ -49,7 +49,16 @@ Existing files are skipped by default. Use `--force` to overwrite starter files,
 - `.github/workflows/*.yml`
 - `.maintainerbench/config.yml`
 
-It reports missing `AGENTS.md`, missing setup/build/test or safety guidance, invalid skill frontmatter, dangerous shell patterns, likely secret paths, broad workflow write permissions, and unpinned install patterns where they are reasonable to detect. Human-readable output is the default, and JSON is available with `--json`.
+It reports these v0.1 rule categories:
+
+- Repository guidance: missing `AGENTS.md`, missing setup/build/test guidance, and missing safety guidance.
+- Skill metadata: missing or invalid `SKILL.md` YAML frontmatter, including missing `name` or `description`.
+- Dangerous commands: `rm -rf`, `curl ... | sh`, `wget ... | sh`, `chmod 777`, `sudo`, `dd if=`, `mkfs`, and shell fork bombs.
+- Secret-looking paths: `.env`, `secrets/`, `credentials`, `id_rsa`, and `private_key`.
+- Workflow permissions: `permissions: write-all` as high severity, plus narrower write scopes such as `contents: write`, `pull-requests: write`, `actions: write`, `issues: write`, and `packages: write` as warnings.
+- Unpinned install patterns in workflow/config files: `npm install`, `pnpm install`, `yarn install`, and `bun install` without lockfile or frozen-lockfile guidance.
+
+Human-readable output is the default, and JSON is available with `--json`.
 
 ```bash
 maintainerbench lint
