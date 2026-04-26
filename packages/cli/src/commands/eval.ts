@@ -87,8 +87,10 @@ function printEvalResult(result: EvalResult, out: (line: string) => void): void 
   out(`Task: ${result.taskId} - ${result.taskTitle}`);
   out(`Run: ${result.runId}`);
   out(`Worktree: ${result.worktreePath}${result.keptWorktree ? " (kept)" : " (removed)"}`);
+  out(`Markdown report: ${result.reportMarkdownPath}`);
+  out(`JSON report: ${result.reportJsonPath}`);
   out(`Elapsed: ${result.elapsedMs}ms`);
-  out("MaintainerBench is a guardrail and benchmark tool, not a complete security sandbox.");
+  out("MaintainerBench provides guardrails and benchmark reports, not guaranteed security or complete sandboxing.");
   out("");
   out(`Changed files: ${result.changedFiles.length}`);
 

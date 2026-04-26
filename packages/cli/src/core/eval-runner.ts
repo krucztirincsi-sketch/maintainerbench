@@ -1,4 +1,4 @@
-import { lstat, readFile } from "node:fs/promises";
+import { lstat, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import type { BenchmarkTask } from "./task-schema.js";
@@ -7,7 +7,7 @@ import type { RiskLevel } from "./risk-rules.js";
 import type { VerificationResult } from "./command-runner.js";
 
 export type EvalCommandStage = "setup" | "agent" | "verify";
-export type EvalStatus = "pass" | "fail" | "risk";
+export type EvalStatus = "pass" | "fail" | "needs-review";
 type TaskCommand = BenchmarkTask["verify"][number];
 
 export interface EvalCommandRecord {
@@ -23,13 +23,53 @@ export interface EvalRiskFinding {
   readonly file?: string;
 }
 
+export interface EvalReportCommand {
+  readonly stage: EvalCommandStage;
+  readonly command: string;
+  readonly exitCode: number | null;
+  readonly signal: NodeJS.Signals | null;
+  readonly timedOut: boolean;
+  readonly durationMs: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+export interface EvalReport {
+  readonly schemaVersion: 1;
+  readonly runId: string;
+  readonly status: EvalStatus;
+  readonly note: string;
+  readonly task: {
+    readonly id: string;
+    readonly title: string;
+  };
+  readonly agentCommand: string;
+  readonly elapsedMs: number;
+  readonly worktree: {
+    readonly path: string;
+    readonly kept: boolean;
+  };
+  readonly commands: {
+    readonly setup: readonly EvalReportCommand[];
+    readonly agent: EvalReportCommand | null;
+    readonly verify: readonly EvalReportCommand[];
+  };
+  readonly changedFiles: readonly string[];
+  readonly diffSummary: string;
+  readonly riskFindings: readonly EvalRiskFinding[];
+}
+
 export interface EvalResult {
   readonly status: EvalStatus;
   readonly taskId: string;
   readonly taskTitle: string;
+  readonly agentCommand: string;
   readonly runId: string;
+  readonly runDirectory: string;
   readonly repoRoot: string;
   readonly worktreePath: string;
+  readonly reportMarkdownPath: string;
+  readonly reportJsonPath: string;
   readonly keptWorktree: boolean;
   readonly elapsedMs: number;
   readonly changedFiles: readonly string[];
@@ -99,6 +139,9 @@ const forbiddenCommandRules: readonly ForbiddenCommandRule[] = [
   }
 ];
 
+const guardrailNote =
+  "MaintainerBench provides guardrails and benchmark reports, not guaranteed security or complete sandboxing.";
+
 export async function runEvalTask(options: RunEvalOptions): Promise<EvalResult> {
   if (options.agentCommand.trim().length === 0) {
     throw new Error("Agent command must not be empty.");
@@ -127,15 +170,18 @@ export async function runEvalTask(options: RunEvalOptions): Promise<EvalResult> 
     const diffText = await collectDiffText(run, changedFiles);
     const riskFindings = analyzeEvalRisk(options.task, changedFiles, diffText);
     const status = calculateEvalStatus(commandResults, riskFindings);
-    cleanup = await cleanupWorktreeRun(run);
-
-    return {
+    cleanup = await cleanupWorktreeRun(run, { preserveRunDirectory: true });
+    const result: EvalResult = {
       status,
       taskId: options.task.id,
       taskTitle: options.task.title,
+      agentCommand: options.agentCommand,
       runId: run.runId,
+      runDirectory: run.runDirectory,
       repoRoot: run.repoRoot,
       worktreePath: run.worktreePath,
+      reportMarkdownPath: path.join(run.runDirectory, "report.md"),
+      reportJsonPath: path.join(run.runDirectory, "report.json"),
       keptWorktree: cleanup.removed === false,
       elapsedMs: Math.max(0, Math.round(performance.now() - startedAt)),
       changedFiles,
@@ -144,6 +190,10 @@ export async function runEvalTask(options: RunEvalOptions): Promise<EvalResult> 
       riskFindings,
       cleanup
     };
+
+    await writeEvalReports(result);
+
+    return result;
   } catch (error: unknown) {
     cleanup = await cleanupWorktreeRun(run).catch((cleanupError: unknown) => ({
       removed: false,
@@ -162,10 +212,154 @@ export function calculateEvalStatus(
   }
 
   if (riskFindings.length > 0) {
-    return "risk";
+    return "needs-review";
   }
 
   return "pass";
+}
+
+export function createEvalReport(result: EvalResult): EvalReport {
+  const setupCommands = result.commandResults.filter((record) => record.stage === "setup").map(toReportCommand);
+  const agentCommand = result.commandResults.find((record) => record.stage === "agent");
+  const verifyCommands = result.commandResults.filter((record) => record.stage === "verify").map(toReportCommand);
+
+  return {
+    schemaVersion: 1,
+    runId: result.runId,
+    status: result.status,
+    note: guardrailNote,
+    task: {
+      id: result.taskId,
+      title: result.taskTitle
+    },
+    agentCommand: result.agentCommand,
+    elapsedMs: result.elapsedMs,
+    worktree: {
+      path: result.worktreePath,
+      kept: result.keptWorktree
+    },
+    commands: {
+      setup: setupCommands,
+      agent: agentCommand === undefined ? null : toReportCommand(agentCommand),
+      verify: verifyCommands
+    },
+    changedFiles: result.changedFiles,
+    diffSummary: result.diffSummary,
+    riskFindings: result.riskFindings
+  };
+}
+
+export function renderEvalMarkdownReport(result: EvalResult): string {
+  const report = createEvalReport(result);
+  const lines: string[] = [
+    "# MaintainerBench Eval Report",
+    "",
+    `> ${guardrailNote}`,
+    "",
+    "## Summary",
+    "",
+    "| Field | Value |",
+    "| --- | --- |",
+    `| Status | ${escapeMarkdownTableCell(report.status)} |`,
+    `| Run ID | ${escapeMarkdownTableCell(report.runId)} |`,
+    `| Task | ${escapeMarkdownTableCell(`${report.task.id} - ${report.task.title}`)} |`,
+    `| Agent command | ${escapeMarkdownTableCell(report.agentCommand)} |`,
+    `| Elapsed | ${String(report.elapsedMs)}ms |`,
+    `| Worktree | ${escapeMarkdownTableCell(`${report.worktree.path}${report.worktree.kept ? " (kept)" : " (removed)"}`)} |`,
+    "",
+    "## Commands",
+    "",
+    "| Stage | Command | Exit | Timed out | Duration |",
+    "| --- | --- | --- | --- | --- |"
+  ];
+
+  const commandRows = [...report.commands.setup, ...(report.commands.agent === null ? [] : [report.commands.agent]), ...report.commands.verify];
+
+  if (commandRows.length === 0) {
+    lines.push("| - | - | - | - | - |");
+  } else {
+    for (const command of commandRows) {
+      lines.push(
+        `| ${command.stage} | ${escapeMarkdownTableCell(command.command)} | ${formatExitCode(command.exitCode)} | ${String(command.timedOut)} | ${String(command.durationMs)}ms |`
+      );
+    }
+  }
+
+  for (const command of commandRows) {
+    if (command.stdout.trim().length === 0 && command.stderr.trim().length === 0) {
+      continue;
+    }
+
+    lines.push("", `### ${command.stage}: ${command.command}`, "");
+
+    if (command.stdout.trim().length > 0) {
+      lines.push("stdout:", "", fencedText(command.stdout.trim()), "");
+    }
+
+    if (command.stderr.trim().length > 0) {
+      lines.push("stderr:", "", fencedText(command.stderr.trim()), "");
+    }
+  }
+
+  lines.push("", "## Changed Files", "");
+
+  if (report.changedFiles.length === 0) {
+    lines.push("(none)");
+  } else {
+    for (const file of report.changedFiles) {
+      lines.push(`- ${file}`);
+    }
+  }
+
+  lines.push("", "## Diff Summary", "");
+  lines.push(report.diffSummary.trim().length === 0 ? "(none)" : fencedText(report.diffSummary.trim()));
+  lines.push("", "## Risk Findings", "");
+
+  if (report.riskFindings.length === 0) {
+    lines.push("(none)");
+  } else {
+    lines.push("| Severity | Rule | File | Message |", "| --- | --- | --- | --- |");
+
+    for (const finding of report.riskFindings) {
+      lines.push(
+        `| ${finding.level} | ${escapeMarkdownTableCell(finding.id)} | ${escapeMarkdownTableCell(finding.file ?? "")} | ${escapeMarkdownTableCell(finding.message)} |`
+      );
+    }
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+async function writeEvalReports(result: EvalResult): Promise<void> {
+  const report = createEvalReport(result);
+
+  await writeFile(result.reportJsonPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeFile(result.reportMarkdownPath, renderEvalMarkdownReport(result), "utf8");
+}
+
+function toReportCommand(record: EvalCommandRecord): EvalReportCommand {
+  return {
+    stage: record.stage,
+    command: record.command,
+    exitCode: record.result.exitCode,
+    signal: record.result.signal,
+    timedOut: record.result.timedOut,
+    durationMs: record.result.durationMs,
+    stdout: record.result.stdout,
+    stderr: record.result.stderr
+  };
+}
+
+function escapeMarkdownTableCell(value: string): string {
+  return value.replace(/\r?\n/g, "<br>").replace(/\|/g, "\\|");
+}
+
+function formatExitCode(exitCode: number | null): string {
+  return exitCode === null ? "null" : String(exitCode);
+}
+
+function fencedText(value: string): string {
+  return ["```text", value.replace(/```/g, "``\\`"), "```"].join("\n");
 }
 
 export function analyzeEvalRisk(

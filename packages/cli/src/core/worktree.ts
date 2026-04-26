@@ -45,6 +45,7 @@ export type WorktreeCommandResult = VerificationResult;
 
 export interface CleanupWorktreeRunOptions {
   readonly force?: boolean;
+  readonly preserveRunDirectory?: boolean;
 }
 
 export interface CleanupWorktreeRunResult {
@@ -159,7 +160,9 @@ export async function cleanupWorktreeRun(
     await runGit(run.repoRoot, ["worktree", "remove", "--force", run.worktreePath]);
   }
 
-  await rm(run.runDirectory, { recursive: true, force: true });
+  if (options.preserveRunDirectory !== true) {
+    await rm(run.runDirectory, { recursive: true, force: true });
+  }
 
   return { removed: true };
 }

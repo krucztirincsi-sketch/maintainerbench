@@ -38,9 +38,9 @@ Human-readable output is the default. `maintainerbench lint --json` emits parsea
 
 ## Eval Worktree Runner
 
-The eval worktree runner detects whether the current directory is inside a git repository, creates detached temporary git worktrees under `.maintainerbench/runs/<run-id>/worktree`, and runs setup, agent, and verification commands with their working directory fixed to that worktree.
+The eval worktree runner detects whether the current directory is inside a git repository, creates detached temporary git worktrees under `.maintainerbench/runs/<run-id>/worktree`, and runs setup, agent, and verification commands with their working directory fixed to that worktree. Eval writes `report.md` and `report.json` in `.maintainerbench/runs/<run-id>/`.
 
-Runner cleanup uses the recorded run directory and refuses paths outside `.maintainerbench/runs/<run-id>`. A keep option leaves the worktree in place for inspection. Eval does not sandbox the child process beyond controlled worktree creation, shell command execution in the worktree, and `cwd` selection; commands can still access files permitted by the host operating system.
+Runner cleanup uses the recorded run directory and refuses paths outside `.maintainerbench/runs/<run-id>`. By default, eval removes the temporary worktree and keeps the run directory for reports. A keep option leaves the worktree in place for inspection. Eval does not sandbox the child process beyond controlled worktree creation, shell command execution in the worktree, and `cwd` selection; commands can still access files permitted by the host operating system.
 
 ## Boundaries
 

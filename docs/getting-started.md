@@ -1,6 +1,6 @@
 # Getting Started
 
-MaintainerBench is currently an initial scaffold. It provides the package layout, CLI entrypoint, repository initialization command, placeholder guardrail commands, templates, and documentation pages that future v0.1 work will build on.
+MaintainerBench is currently an initial v0.1 scaffold. It provides repository initialization, agent-workflow linting, task YAML validation, worktree-based eval runs, diff risk checks, and Markdown/JSON eval reports.
 
 ## Local Development
 
@@ -33,4 +33,4 @@ maintainerbench init --dry-run
 maintainerbench init --force
 ```
 
-The generated config and workflow include placeholders for future lint and eval behavior. The `lint`, `eval`, and `report` commands do not execute agents, modify pull requests, or perform repository risk analysis yet.
+The generated config and workflow include placeholders for future GitHub Action behavior. The `lint` command scans repository-level AI-agent workflow files, and `eval` runs maintainer-supplied agent commands in temporary git worktrees. MaintainerBench does not modify pull requests, approve changes, merge, push, or guarantee security.

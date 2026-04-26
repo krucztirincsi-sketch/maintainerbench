@@ -18,6 +18,8 @@ The first usable eval command supports any terminal-based agent or fake agent co
 maintainerbench eval --task .maintainerbench/tasks/example-bugfix.yml --agent-command "<command>"
 ```
 
-MaintainerBench does not hardcode Codex and does not call model APIs directly. The command is run inside a temporary detached git worktree under `.maintainerbench/runs/<run-id>/worktree`. Eval then runs verification commands, records stdout, stderr, exit codes, elapsed time, changed files, and a git diff summary, and reports `pass`, `fail`, or `risk`.
+MaintainerBench does not hardcode Codex and does not call model APIs directly. The command is run inside a temporary detached git worktree under `.maintainerbench/runs/<run-id>/worktree`. Eval then runs verification commands, records stdout, stderr, exit codes, elapsed time, changed files, and a git diff summary, and reports `pass`, `fail`, or `needs-review`.
+
+Each eval run writes `.maintainerbench/runs/<run-id>/report.md` for maintainers and `.maintainerbench/runs/<run-id>/report.json` for future automation such as GitHub Actions.
 
 The risk summary currently checks forbidden paths, forbidden command patterns in changed content, too many changed files, and missing test changes when `require_tests` is enabled. MaintainerBench does not commit, merge, push, approve pull requests, or provide a complete security sandbox.
