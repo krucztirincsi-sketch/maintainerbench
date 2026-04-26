@@ -6,7 +6,7 @@ The project is intended to help maintainers generate repo-local agent instructio
 
 ## Status
 
-This repository is an initial v0.1 scaffold. The CLI loads and exposes placeholder commands, but agent execution, linting, worktree orchestration, diff analysis, and report generation are not implemented yet.
+This repository is an initial v0.1 scaffold. The `init` command can create starter repository files for AI coding-agent workflows. Agent execution, linting, worktree orchestration, diff analysis, and report generation are not implemented yet.
 
 ## Install
 
@@ -28,7 +28,19 @@ maintainerbench eval
 maintainerbench report
 ```
 
-The current commands are placeholders that define the intended command surface without performing agent execution or repository mutation.
+`maintainerbench init` initializes the current working directory by creating:
+
+- `AGENTS.md`
+- `.maintainerbench/config.yml`
+- `.maintainerbench/tasks/example-bugfix.yml`
+- `.agents/skills/code-change-verification/SKILL.md`
+- `.agents/skills/pr-review/SKILL.md`
+- `.agents/skills/docs-sync/SKILL.md`
+- `.github/workflows/maintainerbench.yml`
+
+Existing files are skipped by default. Use `--force` to overwrite starter files, or `--dry-run` to print the planned changes without writing files.
+
+The `lint`, `eval`, and `report` commands are still placeholders that define the intended command surface without performing agent execution or repository risk analysis.
 
 ## v0.1 Roadmap
 

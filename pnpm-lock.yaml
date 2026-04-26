@@ -8,12 +8,12 @@ importers:
 
   .:
     devDependencies:
+      '@maintainerbench/cli':
+        specifier: workspace:*
+        version: link:packages/cli
       '@types/node':
         specifier: ^20.19.25
         version: 20.19.39
-      maintainerbench:
-        specifier: workspace:*
-        version: link:packages/cli
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
