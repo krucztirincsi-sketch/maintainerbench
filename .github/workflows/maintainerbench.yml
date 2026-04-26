@@ -1,7 +1,9 @@
 name: MaintainerBench
 
 on:
-  pull_request:
+  push:
+    tags:
+      - "v*.*.*"  # 监听标签的推送
   workflow_dispatch:
 
 jobs:
@@ -37,7 +39,7 @@ jobs:
           mode: lint
           fail-on: high
 
-      # 添加发布步骤
+      # 发布步骤
       - name: Create release package
         run: |
           mkdir -p release
