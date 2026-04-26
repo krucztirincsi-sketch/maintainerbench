@@ -36,3 +36,24 @@ jobs:
         with:
           mode: lint
           fail-on: high
+
+      # 添加发布步骤
+      - name: Create release package
+        run: |
+          mkdir -p release
+          tar -czf release/maintainerbench-${GITHUB_REF_NAME}.tar.gz \
+            package.json \
+            pnpm-workspace.yaml \
+            README.md \
+            LICENSE \
+            AGENTS.md \
+            packages \
+            templates \
+            docs \
+            examples
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release/maintainerbench-${{ github.ref_name }}.tar.gz
