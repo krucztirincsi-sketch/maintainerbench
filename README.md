@@ -6,7 +6,7 @@ The project is intended to help maintainers generate repo-local agent instructio
 
 ## Status
 
-This repository is an initial v0.1 scaffold. The `init` command can create starter repository files for AI coding-agent workflows. Agent execution, linting, worktree orchestration, diff analysis, and report generation are not implemented yet.
+This repository is an initial v0.1 scaffold. The `init` command can create starter repository files for AI coding-agent workflows, and `lint` can scan repository-level agent workflow files for missing guidance and unsafe patterns. Agent execution, worktree orchestration, diff analysis, and report generation are not implemented yet.
 
 ## Install
 
@@ -40,7 +40,23 @@ maintainerbench report
 
 Existing files are skipped by default. Use `--force` to overwrite starter files, or `--dry-run` to print the planned changes without writing files.
 
-The `lint`, `eval`, and `report` commands are still placeholders that define the intended command surface without performing agent execution or repository risk analysis.
+`maintainerbench lint` scans:
+
+- `AGENTS.md`
+- `.agents/**/SKILL.md`
+- `.codex/config.toml`
+- `.mcp.json` and `mcp.json`
+- `.github/workflows/*.yml`
+- `.maintainerbench/config.yml`
+
+It reports missing `AGENTS.md`, missing setup/build/test or safety guidance, invalid skill frontmatter, dangerous shell patterns, likely secret paths, broad workflow write permissions, and unpinned install patterns where they are reasonable to detect. Human-readable output is the default, and JSON is available with `--json`.
+
+```bash
+maintainerbench lint
+maintainerbench lint --json
+```
+
+The lint command exits non-zero when high severity findings are present. The `eval` and `report` commands are still placeholders that define the intended command surface without performing agent execution or repository risk analysis.
 
 ## v0.1 Roadmap
 

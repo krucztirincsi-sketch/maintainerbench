@@ -102,7 +102,12 @@ verify:
   },
   {
     path: ".agents/skills/code-change-verification/SKILL.md",
-    content: `# Code Change Verification
+    content: `---
+name: code-change-verification
+description: Verify AI-assisted code changes with focused tests and required repository checks.
+---
+
+# Code Change Verification
 
 Use this skill when verifying code changes made by an AI coding agent.
 
@@ -118,7 +123,12 @@ Do not claim that verification guarantees safety.
   },
   {
     path: ".agents/skills/pr-review/SKILL.md",
-    content: `# Pull Request Review
+    content: `---
+name: pr-review
+description: Review AI-assisted pull requests for correctness, safety, and maintainability.
+---
+
+# Pull Request Review
 
 Use this skill when reviewing an AI-assisted pull request.
 
@@ -134,7 +144,12 @@ Do not approve, merge, or auto-accept pull requests.
   },
   {
     path: ".agents/skills/docs-sync/SKILL.md",
-    content: `# Docs Sync
+    content: `---
+name: docs-sync
+description: Keep documentation aligned with user-facing code and workflow changes.
+---
+
+# Docs Sync
 
 Use this skill when a code change may require documentation updates.
 

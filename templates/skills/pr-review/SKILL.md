@@ -1,3 +1,8 @@
+---
+name: pr-review
+description: Review AI-assisted pull requests for correctness, safety, and maintainability.
+---
+
 # Pull Request Review
 
 Use this skill when reviewing an AI-assisted pull request.

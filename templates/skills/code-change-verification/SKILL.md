@@ -1,3 +1,8 @@
+---
+name: code-change-verification
+description: Verify AI-assisted code changes with focused tests and required repository checks.
+---
+
 # Code Change Verification
 
 Use this skill when verifying code changes made by an AI coding agent.
