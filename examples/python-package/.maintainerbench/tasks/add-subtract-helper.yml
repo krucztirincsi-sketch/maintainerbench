@@ -1,0 +1,17 @@
+id: python-package-add-subtract-helper
+title: Add a subtract helper to the Python example package
+description: |-
+  Add a subtract(left, right) helper to examples/python-package and cover it
+  with a focused unittest test.
+setup:
+  commands: []
+verify:
+  commands:
+    - run: python -m unittest discover -s examples/python-package/tests
+      timeoutSeconds: 120
+risk:
+  forbidden_paths:
+    - .github/
+    - AGENTS.md
+  max_files_changed: 4
+  require_tests: true

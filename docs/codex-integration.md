@@ -1,25 +1,65 @@
 # Codex Integration
 
-MaintainerBench is designed to work with terminal-based coding agents such as Codex by providing repository instructions, skills, benchmark tasks, verification commands, and reports.
+MaintainerBench can run Codex CLI as an external command through `--agent-command`. MaintainerBench does not hardcode Codex, does not call model APIs directly, and also works with fake agents or other terminal coding agents.
 
-## Eval Flow
+## Basic Flow
 
-1. Generate or lint repo-local `AGENTS.md` instructions.
-2. Load benchmark task YAML.
-3. Prepare an isolated git worktree.
-4. Run an agent command supplied by the maintainer.
-5. Run verification commands.
-6. Analyze the resulting diff for risk.
-7. Emit Markdown and JSON reports.
-
-The first usable eval command supports any terminal-based agent or fake agent command supplied through `--agent-command`:
+1. Add or update `AGENTS.md` so Codex has repository-specific instructions.
+2. Write a MaintainerBench task YAML file.
+3. Run `maintainerbench eval` with a Codex CLI command.
+4. Review the generated diff and reports.
 
 ```bash
-maintainerbench eval --task .maintainerbench/tasks/example-bugfix.yml --agent-command "<command>"
+pnpm exec maintainerbench eval \
+  --task examples/ts-library/.maintainerbench/tasks/add-multiply-helper.yml \
+  --agent-command "codex exec \"Add the multiply helper requested by the task. Keep changes small and include a test.\""
 ```
 
-MaintainerBench does not hardcode Codex and does not call model APIs directly. The command is run inside a temporary detached git worktree under `.maintainerbench/runs/<run-id>/worktree`. Eval then runs verification commands, records stdout, stderr, exit codes, elapsed time, changed files, and a git diff summary, and reports `pass`, `fail`, or `needs-review`.
+The command runs inside `.maintainerbench/runs/<run-id>/worktree`, not in your main checkout. Eval then runs verification commands, records command output, collects changed files and a diff summary, applies risk rules, and writes `report.md` and `report.json`.
 
-Each eval run writes `.maintainerbench/runs/<run-id>/report.md` for maintainers and `.maintainerbench/runs/<run-id>/report.json` for future automation such as GitHub Actions.
+## Approval And Sandbox Caution
 
-The risk summary currently checks forbidden paths, forbidden command patterns in changed content, too many changed files, and missing test changes when `require_tests` is enabled. MaintainerBench does not commit, merge, push, approve pull requests, or provide a complete security sandbox.
+Use Codex approval and sandbox settings deliberately. MaintainerBench is a guardrail and benchmark runner, not a complete security sandbox.
+
+Recommended approach:
+
+- Prefer Codex settings that ask before risky commands.
+- Keep task scope small and verification commands explicit.
+- Avoid bypass modes that disable meaningful approval or filesystem protections.
+- Do not give the agent credentials, production tokens, SSH keys, or broad cloud access.
+- Review the MaintainerBench report and the actual diff before merging.
+
+MaintainerBench never approves, merges, pushes, deploys, or calls model APIs by itself.
+
+## Fake Agent First
+
+Before using Codex, you can test the task and report flow with the included fake agent:
+
+```bash
+pnpm exec maintainerbench eval \
+  --task examples/ts-library/.maintainerbench/tasks/add-multiply-helper.yml \
+  --agent-command "node examples/fake-agents/add-ts-multiply.mjs"
+```
+
+This helps confirm that the task file, worktree creation, verification command, risk rules, and reports behave as expected.
+
+## Report Review
+
+After eval, open the report paths printed by the CLI:
+
+- `.maintainerbench/runs/<run-id>/report.md`
+- `.maintainerbench/runs/<run-id>/report.json`
+
+The report includes:
+
+- run id
+- task id and title
+- agent command
+- setup, agent, and verify command results
+- changed files
+- diff summary
+- risk findings
+- final status
+- elapsed time
+
+Use `pass` as evidence that configured commands passed, not as proof of correctness. Use `needs-review` as a signal to inspect risk findings before deciding what to do next.

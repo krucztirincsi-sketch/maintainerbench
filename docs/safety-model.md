@@ -1,51 +1,144 @@
 # Safety Model
 
-MaintainerBench is a guardrail and reporting tool. It does not guarantee security, correctness, or safe pull request acceptance.
+MaintainerBench is a guardrail and reporting tool for repositories that use terminal-based AI coding agents. It helps maintainers define instructions, lint workflow files, run benchmark tasks in temporary git worktrees, and review generated reports.
 
-## Intended Checks
+It does not guarantee security, correctness, or safe pull request acceptance.
 
-- Keep file reads and writes inside the repository.
-- Flag secret access and credential exposure attempts.
-- Flag dangerous shell patterns such as `curl | sh`, `wget | sh`, `rm -rf`, and `chmod 777`.
-- Flag unpinned install commands and path traversal.
-- Report what was checked, what was skipped, and what risk remains.
+## What MaintainerBench Checks
 
-## Lint Scope
+### Repository Guidance
 
-`maintainerbench lint` inspects repository-level AI-agent workflow files:
+`maintainerbench lint` checks that `AGENTS.md` exists and includes setup, build, test, and safety guidance. This helps agents find the maintainer's actual workflow before editing code.
+
+Rule ids:
+
+- `agents.missing`
+- `agents.missing-verification-guidance`
+- `agents.missing-safety-guidance`
+
+### Repo-Local Skills
+
+Lint inspects `.agents/**/SKILL.md` and checks for YAML frontmatter with non-empty `name` and `description`.
+
+Rule ids:
+
+- `skill.missing-frontmatter`
+- `skill.invalid-frontmatter`
+- `skill.missing-name`
+- `skill.missing-description`
+
+### Dangerous Command Patterns
+
+Lint flags risky command text in inspected agent workflow files. Examples include recursive force deletion, remote downloads piped directly into a shell, broad permissions, privileged commands, filesystem formatting, and shell fork bombs.
+
+Rule ids:
+
+- `dangerous-command.rm-rf`
+- `dangerous-command.curl-pipe-sh`
+- `dangerous-command.wget-pipe-sh`
+- `dangerous-command.chmod-777`
+- `dangerous-command.sudo`
+- `dangerous-command.dd-if`
+- `dangerous-command.mkfs`
+- `dangerous-command.fork-bomb`
+
+### Secret-Looking Paths
+
+Lint flags references that look like secret or credential paths, including `.env`, `secrets/`, `credentials`, `id_rsa`, and `private_key`.
+
+Rule ids:
+
+- `secret-path.dotenv`
+- `secret-path.secrets-directory`
+- `secret-path.credentials`
+- `secret-path.id-rsa`
+- `secret-path.private-key`
+
+### Workflow Permissions
+
+Lint flags broad GitHub Actions write permissions in workflow and config files. `permissions: write-all` is high severity. Narrower write scopes are warnings so maintainers can review whether they are necessary.
+
+Rule ids:
+
+- `workflow-permissions.write-all`
+- `workflow-permissions.contents-write`
+- `workflow-permissions.pull-requests-write`
+- `workflow-permissions.actions-write`
+- `workflow-permissions.issues-write`
+- `workflow-permissions.packages-write`
+
+### Unpinned Install Patterns
+
+Lint flags install commands in automation when they lack lockfile-oriented guidance, such as `npm install` instead of `npm ci` or `pnpm install` without `--frozen-lockfile`.
+
+Rule ids:
+
+- `install.unpinned-npm-install`
+- `install.unpinned-pnpm-install`
+- `install.unpinned-yarn-install`
+- `install.unpinned-bun-install`
+
+### Eval Risk Rules
+
+`maintainerbench eval` applies task-level risk rules after the agent command runs:
+
+- `forbidden_paths`: high severity when changed files match forbidden path patterns.
+- `max_files_changed`: high severity when the diff changes too many files.
+- `require_tests`: records a finding when files changed but no changed file looks like a test.
+- forbidden command patterns in changed content: high severity when changed content contains risky shell patterns.
+
+If commands pass but risk findings exist, final status is `needs-review`.
+
+## Files Inspected By Lint
+
+`maintainerbench lint` inspects:
 
 - `AGENTS.md`
 - `.agents/**/SKILL.md`
 - `.codex/config.toml`
-- `.mcp.json` and `mcp.json`
+- `.mcp.json`
+- `mcp.json`
 - `.github/workflows/*.yml`
 - `.maintainerbench/config.yml`
 
-The lint command checks that `AGENTS.md` exists, includes setup/build/test instructions, and includes safety or security guidance. It also checks that repo-local `SKILL.md` files begin with YAML frontmatter containing `name` and `description`.
+It does not scan every source file in the repository.
 
-## Lint Rule Categories
+## Worktree Isolation
 
-- Repository guidance: `agents.missing`, `agents.missing-verification-guidance`, and `agents.missing-safety-guidance`.
-- Skill metadata: `skill.missing-frontmatter`, `skill.invalid-frontmatter`, `skill.missing-name`, and `skill.missing-description`.
-- Dangerous commands: `dangerous-command.rm-rf`, `dangerous-command.curl-pipe-sh`, `dangerous-command.wget-pipe-sh`, `dangerous-command.chmod-777`, `dangerous-command.sudo`, `dangerous-command.dd-if`, `dangerous-command.mkfs`, and `dangerous-command.fork-bomb`.
-- Secret-looking paths: `secret-path.dotenv`, `secret-path.secrets-directory`, `secret-path.credentials`, `secret-path.id-rsa`, and `secret-path.private-key`.
-- Workflow permissions: `workflow-permissions.write-all`, `workflow-permissions.contents-write`, `workflow-permissions.pull-requests-write`, `workflow-permissions.actions-write`, `workflow-permissions.issues-write`, and `workflow-permissions.packages-write`.
-- Unpinned installs: `install.unpinned-npm-install`, `install.unpinned-pnpm-install`, `install.unpinned-yarn-install`, and `install.unpinned-bun-install`.
+Eval creates a detached temporary git worktree under `.maintainerbench/runs/<run-id>/worktree`. Setup commands, the agent command, verification commands, git diff collection, and report generation are all tied to that worktree.
 
-High severity findings include missing `AGENTS.md`, dangerous shell patterns, likely secret paths, and the broadest workflow write permissions such as `permissions: write-all`. Warning findings include missing guidance, invalid skill frontmatter, narrower workflow write permissions, and unpinned install patterns such as `npm install` in automation without lockfile guidance.
+By default, eval removes the worktree and keeps:
 
-Human-readable output is the default. `maintainerbench lint --json` emits parseable JSON for CI and tooling. The command exits non-zero when high severity findings are present.
+- `.maintainerbench/runs/<run-id>/report.md`
+- `.maintainerbench/runs/<run-id>/report.json`
 
-## Eval Worktree Runner
+Use `--keep-worktree` only when you need to inspect the generated worktree.
 
-The eval worktree runner detects whether the current directory is inside a git repository, creates detached temporary git worktrees under `.maintainerbench/runs/<run-id>/worktree`, and runs setup, agent, and verification commands with their working directory fixed to that worktree. Eval writes `report.md` and `report.json` in `.maintainerbench/runs/<run-id>/`.
+## What MaintainerBench Does Not Guarantee
 
-Runner cleanup uses the recorded run directory and refuses paths outside `.maintainerbench/runs/<run-id>`. By default, eval removes the temporary worktree and keeps the run directory for reports. A keep option leaves the worktree in place for inspection. Eval does not sandbox the child process beyond controlled worktree creation, shell command execution in the worktree, and `cwd` selection; commands can still access files permitted by the host operating system.
+MaintainerBench is not a complete security sandbox. It does not guarantee that a command cannot access files allowed by the host operating system. It does not prove that code is correct, secure, performant, or maintainable.
 
-## GitHub Action
+MaintainerBench does not:
+
+- call model APIs directly
+- approve pull requests
+- merge pull requests
+- push branches
+- deploy or publish packages
+- prevent every possible secret access
+- replace code review
+- replace CI
+- replace a real sandbox or container boundary
+- guarantee that lint and eval rules catch every risky change
+
+## GitHub Action Boundary
 
 The v0.1 GitHub Action supports `mode: lint` only. It runs `maintainerbench lint --json`, prints a summary, and applies the configured `fail-on` threshold. It rejects `mode: eval` and does not run agent commands or call model APIs.
 
-## Boundaries
+## Recommended Maintainer Practice
 
-MaintainerBench must not approve, merge, or auto-accept pull requests. It must not call model APIs or send telemetry.
+- Keep `AGENTS.md` short, current, and specific to the repository.
+- Keep task verification commands deterministic and non-interactive.
+- Run eval on small tasks with clear expected outcomes.
+- Treat `needs-review` as a prompt for maintainer inspection, not as a failure to ignore.
+- Review generated reports alongside the actual diff.

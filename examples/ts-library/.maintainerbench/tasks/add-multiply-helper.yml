@@ -1,0 +1,17 @@
+id: ts-library-add-multiply-helper
+title: Add a multiply helper to the TypeScript example library
+description: |-
+  Add an exported multiply(left, right) helper to examples/ts-library and cover it
+  with a focused unit test.
+setup:
+  commands: []
+verify:
+  commands:
+    - run: pnpm --filter @maintainerbench/example-ts-library test
+      timeoutSeconds: 120
+risk:
+  forbidden_paths:
+    - .github/
+    - AGENTS.md
+  max_files_changed: 4
+  require_tests: true

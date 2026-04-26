@@ -2,13 +2,11 @@
 
 MaintainerBench is an open-source CLI and GitHub Action toolkit for maintainers who want safer workflows around terminal-based AI coding agents such as Codex, Claude Code, Gemini CLI, OpenCode, and similar tools.
 
-The project is intended to help maintainers generate repo-local agent instructions, lint agent configuration, define benchmark tasks, run verification commands, analyze diffs for risk, and produce Markdown or JSON reports. MaintainerBench provides guardrails and reporting. It does not guarantee security, correctness, or safe pull request acceptance.
+It helps maintainers create repo-local instructions and skills, lint AI-agent workflow files, run benchmark tasks in temporary git worktrees, verify agent changes, analyze diff risk, and write Markdown/JSON reports.
 
-## Status
+MaintainerBench provides guardrails and reports. It does not guarantee security, correctness, or safe pull request acceptance.
 
-This repository is an initial v0.1 scaffold. The `init` command can create starter repository files for AI coding-agent workflows, `lint` can scan repository-level agent workflow files for missing guidance and unsafe patterns, and `eval` can run one benchmark task through an external shell command in a temporary git worktree.
-
-## Install
+## Quickstart
 
 Package publishing is not configured yet. For local development:
 
@@ -18,17 +16,47 @@ pnpm build
 pnpm exec maintainerbench --help
 ```
 
-## CLI
+Initialize a repository:
 
 ```bash
-maintainerbench --help
+pnpm exec maintainerbench init
+```
+
+Lint agent workflow files:
+
+```bash
+pnpm exec maintainerbench lint
+pnpm exec maintainerbench lint --json
+```
+
+Run a benchmark task with the included fake agent:
+
+```bash
+pnpm exec maintainerbench eval \
+  --task examples/ts-library/.maintainerbench/tasks/add-multiply-helper.yml \
+  --agent-command "node examples/fake-agents/add-ts-multiply.mjs"
+```
+
+Run the same task with Codex CLI if Codex is installed:
+
+```bash
+pnpm exec maintainerbench eval \
+  --task examples/ts-library/.maintainerbench/tasks/add-multiply-helper.yml \
+  --agent-command "codex exec \"Add the multiply helper requested by the task. Keep changes small and include a test.\""
+```
+
+Codex is optional. MaintainerBench does not hardcode Codex and does not call model APIs directly.
+
+## Core Commands
+
+```bash
 maintainerbench init
 maintainerbench lint
-maintainerbench eval
+maintainerbench eval --task <task.yml> --agent-command "<command>"
 maintainerbench report
 ```
 
-`maintainerbench init` initializes the current working directory by creating:
+`maintainerbench init` creates:
 
 - `AGENTS.md`
 - `.maintainerbench/config.yml`
@@ -38,95 +66,70 @@ maintainerbench report
 - `.agents/skills/docs-sync/SKILL.md`
 - `.github/workflows/maintainerbench.yml`
 
-Existing files are skipped by default. Use `--force` to overwrite starter files, or `--dry-run` to print the planned changes without writing files.
+Existing files are skipped unless `--force` is passed. Use `--dry-run` to preview writes.
 
 The generated repo-local skills come from `templates/skills`:
 
 - `code-change-verification`: helps agents verify code changes with focused tests and honest residual-risk reporting.
 - `pr-review`: helps agents produce maintainer-friendly pull request reviews focused on correctness, safety, tests, and docs.
-- `docs-sync`: helps agents update README, docs, examples, templates, and report documentation when public behavior changes.
+- `docs-sync`: helps agents update docs, examples, templates, and report documentation when public behavior changes.
 
-`maintainerbench lint` scans:
+`maintainerbench lint` inspects:
 
 - `AGENTS.md`
 - `.agents/**/SKILL.md`
 - `.codex/config.toml`
-- `.mcp.json` and `mcp.json`
+- `.mcp.json`
+- `mcp.json`
 - `.github/workflows/*.yml`
 - `.maintainerbench/config.yml`
 
-It reports these v0.1 rule categories:
+It reports missing guidance, invalid skill metadata, dangerous command patterns, likely secret paths, broad workflow permissions, and unpinned install patterns. It exits non-zero when high severity findings exist.
 
-- Repository guidance: missing `AGENTS.md`, missing setup/build/test guidance, and missing safety guidance.
-- Skill metadata: missing or invalid `SKILL.md` YAML frontmatter, including missing `name` or `description`.
-- Dangerous commands: `rm -rf`, `curl ... | sh`, `wget ... | sh`, `chmod 777`, `sudo`, `dd if=`, `mkfs`, and shell fork bombs.
-- Secret-looking paths: `.env`, `secrets/`, `credentials`, `id_rsa`, and `private_key`.
-- Workflow permissions: `permissions: write-all` as high severity, plus narrower write scopes such as `contents: write`, `pull-requests: write`, `actions: write`, `issues: write`, and `packages: write` as warnings.
-- Unpinned install patterns in workflow/config files: `npm install`, `pnpm install`, `yarn install`, and `bun install` without lockfile or frozen-lockfile guidance.
+`maintainerbench eval` creates a detached worktree under `.maintainerbench/runs/<run-id>/worktree`, runs setup commands, runs the supplied agent command, runs verify commands, analyzes the diff, and writes:
 
-Human-readable output is the default, and JSON is available with `--json`.
+- `.maintainerbench/runs/<run-id>/report.md`
+- `.maintainerbench/runs/<run-id>/report.json`
+
+Final status values:
+
+- `pass`: configured commands passed and no risk findings were produced.
+- `fail`: setup, agent, or verification failed.
+- `needs-review`: commands passed, but risk findings require maintainer review.
+
+## Examples
+
+- `examples/ts-library`: small TypeScript package with a Vitest test and a MaintainerBench task.
+- `examples/python-package`: small dependency-free Python package with a unittest command and a MaintainerBench task.
+- `examples/fake-agents/add-ts-multiply.mjs`: fake agent command for testing eval without Codex or another model-backed agent.
+
+Python example test command:
 
 ```bash
-maintainerbench lint
-maintainerbench lint --json
+python -m unittest discover -s examples/python-package/tests
 ```
-
-The lint command exits non-zero when high severity findings are present.
 
 ## GitHub Action
 
-MaintainerBench includes a v0.1 GitHub Action wrapper for CI lint checks:
+The v0.1 GitHub Action supports lint mode only:
 
 ```yaml
-name: MaintainerBench
-
-on:
-  pull_request:
-  workflow_dispatch:
-
-jobs:
-  maintainerbench:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.31.0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - uses: ./packages/github-action
-        with:
-          mode: lint
-          fail-on: high
+- uses: ./packages/github-action
+  with:
+    mode: lint
+    fail-on: high
 ```
 
-Until the action is published as a bundled release, use it from a checkout that has installed dependencies and run `pnpm build`, as shown above.
+Until the action is published as a bundled release, use it from a checkout that has installed dependencies and run `pnpm build`.
 
 Action inputs:
 
-- `mode`: `lint` or `eval`. v0.1 supports `lint` only; `eval` exits with a clear unsupported-mode error.
+- `mode`: `lint` or `eval`; v0.1 supports `lint` only.
 - `task`: reserved for future eval support and ignored in lint mode.
 - `agent-command`: reserved for future eval support and never run by the v0.1 action.
 - `fail-on`: `warning`, `high`, or `never`.
 
-The action runs `maintainerbench lint --json`, prints a concise summary, and applies `fail-on` to decide whether the workflow fails. It does not run agent commands or call model APIs.
-
-`maintainerbench eval` runs one task YAML file in a temporary detached worktree and executes a maintainer-supplied external shell command:
-
-```bash
-maintainerbench eval --task .maintainerbench/tasks/example-bugfix.yml --agent-command "<command>"
-```
-
-Eval runs task `setup.commands`, then the `--agent-command`, then `verify.commands`; collects changed files, diff summary, command output, exit codes, and elapsed time; applies basic risk rules; and prints a final `pass`, `fail`, or `needs-review` summary. It also writes reports to `.maintainerbench/runs/<run-id>/report.md` and `.maintainerbench/runs/<run-id>/report.json`. It never commits, merges, pushes, approves, or calls model APIs directly. It is a guardrail and benchmark tool, not a complete security sandbox. The `report` command is still a placeholder.
-
-Sample report excerpt:
+## Sample Report
 
 ```md
 # MaintainerBench Eval Report
@@ -146,19 +149,30 @@ Sample report excerpt:
 
 | Severity | Rule | File | Message |
 | --- | --- | --- | --- |
-| high | eval.forbidden-path | .github/workflows/release.yml | Changed forbidden path matching .github/workflows/. |
+| high | eval.forbidden-path | .github/workflows/release.yml | Changed forbidden path matching .github/. |
 ```
 
-## v0.1 Roadmap
+## v0.1 Limitations
 
-- Generate starter `AGENTS.md` files and repo-local skills.
-- Lint `AGENTS.md`, `SKILL.md`, MCP config, and agent workflow files.
-- Detect unsafe shell and file-access patterns conservatively.
-- Parse benchmark task YAML with `zod` validation.
-- Run benchmark tasks in isolated git worktrees.
-- Execute verification commands with argument arrays and bounded timeouts.
-- Analyze diffs for risky changes and report residual risk.
-- Emit Markdown and JSON reports.
-- Provide a GitHub Action wrapper for CI use.
+- No web app, database, SaaS backend, auth system, or telemetry.
+- No model API calls.
+- GitHub Action eval mode is not supported yet.
+- Eval is not a complete sandbox; commands can still access files permitted by the host operating system.
+- MaintainerBench does not approve, merge, push, deploy, publish, or auto-accept pull requests.
+- Reports show configured checks and risk findings; they do not prove correctness or security.
 
-MaintainerBench will not approve, merge, or auto-accept pull requests.
+## Roadmap
+
+- Publish the CLI and action packaging.
+- Expand task examples and fixtures.
+- Add a first-class `report` command.
+- Improve JSON schemas for CI and GitHub Action consumers.
+- Broaden risk rules while keeping false positives explainable.
+- Add richer GitHub Action report annotations.
+
+## Documentation
+
+- [Getting Started](docs/getting-started.md)
+- [Task Format](docs/task-format.md)
+- [Safety Model](docs/safety-model.md)
+- [Codex Integration](docs/codex-integration.md)
