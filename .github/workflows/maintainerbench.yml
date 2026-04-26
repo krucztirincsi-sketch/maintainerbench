@@ -39,7 +39,6 @@ jobs:
           mode: lint
           fail-on: high
 
-      # 创建发布文件
       - name: Create release package
         run: |
           mkdir -p release
@@ -54,14 +53,14 @@ jobs:
             docs \
             examples
 
-      # 自动创建标签并推送
       - name: Create a tag for the release
         run: |
-          VERSION="v${GITHUB_SHA:0:7}"  # 使用 commit hash 的前 7 位作为版本号
+          VERSION="v${GITHUB_SHA:0:7}"
           git tag $VERSION
           git push origin $VERSION
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 创建 GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
