@@ -1,6 +1,7 @@
 import { access, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { runInitCommand } from "../src/commands/init.js";
 import { parseBenchmarkTaskYaml } from "../src/core/task-schema.js";
@@ -13,6 +14,24 @@ const generatedPaths = [
   ".agents/skills/pr-review/SKILL.md",
   ".agents/skills/docs-sync/SKILL.md",
   ".github/workflows/maintainerbench.yml"
+] as const;
+
+const generatedSkillTemplates = [
+  {
+    generatedPath: ".agents/skills/code-change-verification/SKILL.md",
+    templatePath: "skills/code-change-verification/SKILL.md",
+    name: "code-change-verification"
+  },
+  {
+    generatedPath: ".agents/skills/pr-review/SKILL.md",
+    templatePath: "skills/pr-review/SKILL.md",
+    name: "pr-review"
+  },
+  {
+    generatedPath: ".agents/skills/docs-sync/SKILL.md",
+    templatePath: "skills/docs-sync/SKILL.md",
+    name: "docs-sync"
+  }
 ] as const;
 
 describe("maintainerbench init", () => {
@@ -36,6 +55,21 @@ describe("maintainerbench init", () => {
     const task = parseBenchmarkTaskYaml(taskSource);
     expect(task.id).toBe("example-bugfix");
     expect(task.verify).toEqual([{ run: "pnpm test", timeoutSeconds: 120 }]);
+
+    for (const skillTemplate of generatedSkillTemplates) {
+      const generatedSkill = await readFile(path.join(repo, skillTemplate.generatedPath), "utf8");
+      const sourceTemplate = await readTemplate(skillTemplate.templatePath);
+
+      expect(generatedSkill).toBe(sourceTemplate);
+      expect(generatedSkill).toContain(`name: ${skillTemplate.name}`);
+      expect(generatedSkill).toContain("description:");
+      expect(generatedSkill).toContain("## When To Use");
+      expect(generatedSkill).toContain("## Workflow");
+      expect(generatedSkill).toContain("## Safety Boundaries");
+      expect(generatedSkill).toContain("## Examples");
+      expect(generatedSkill.toLowerCase()).toContain("do not");
+      expect(generatedSkill.toLowerCase()).toContain("guarantee");
+    }
 
     const summary = output.join("\n");
     expect(summary).toContain("MaintainerBench init summary");
@@ -87,6 +121,11 @@ describe("maintainerbench init", () => {
     expect(summary).toContain("No files were written.");
   });
 });
+
+async function readTemplate(templatePath: string): Promise<string> {
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+  return readFile(path.join(repoRoot, "templates", templatePath), "utf8");
+}
 
 async function createTempRepo(): Promise<string> {
   return mkdtemp(path.join(tmpdir(), "maintainerbench-init-"));

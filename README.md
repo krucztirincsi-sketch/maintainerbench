@@ -40,6 +40,12 @@ maintainerbench report
 
 Existing files are skipped by default. Use `--force` to overwrite starter files, or `--dry-run` to print the planned changes without writing files.
 
+The generated repo-local skills come from `templates/skills`:
+
+- `code-change-verification`: helps agents verify code changes with focused tests and honest residual-risk reporting.
+- `pr-review`: helps agents produce maintainer-friendly pull request reviews focused on correctness, safety, tests, and docs.
+- `docs-sync`: helps agents update README, docs, examples, templates, and report documentation when public behavior changes.
+
 `maintainerbench lint` scans:
 
 - `AGENTS.md`

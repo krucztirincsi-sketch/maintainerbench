@@ -1,5 +1,6 @@
-import { lstat, mkdir, realpath, stat, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 
 type InitFileStatus =
@@ -10,10 +11,17 @@ type InitFileStatus =
   | "would-overwrite"
   | "would-skip";
 
-interface InitFileTemplate {
+interface InlineInitFileTemplate {
   readonly path: string;
   readonly content: string;
 }
+
+interface FileInitFileTemplate {
+  readonly path: string;
+  readonly templatePath: string;
+}
+
+type InitFileTemplate = InlineInitFileTemplate | FileInitFileTemplate;
 
 export interface InitFileResult {
   readonly path: string;
@@ -106,64 +114,15 @@ risk:
   },
   {
     path: ".agents/skills/code-change-verification/SKILL.md",
-    content: `---
-name: code-change-verification
-description: Verify AI-assisted code changes with focused tests and required repository checks.
----
-
-# Code Change Verification
-
-Use this skill when verifying code changes made by an AI coding agent.
-
-## Workflow
-
-1. Inspect the changed files and identify the behavior under test.
-2. Run the narrowest relevant tests first.
-3. Run the repository's required verification commands before finalizing.
-4. Report what passed, what failed, what was skipped, and what risk remains.
-
-Do not claim that verification guarantees safety.
-`
+    templatePath: "skills/code-change-verification/SKILL.md"
   },
   {
     path: ".agents/skills/pr-review/SKILL.md",
-    content: `---
-name: pr-review
-description: Review AI-assisted pull requests for correctness, safety, and maintainability.
----
-
-# Pull Request Review
-
-Use this skill when reviewing an AI-assisted pull request.
-
-## Workflow
-
-1. Prioritize correctness, safety, and maintainability findings.
-2. Look for secret access, unsafe shell commands, path traversal, and unbounded file writes.
-3. Check that docs and tests match the behavioral change.
-4. Keep summaries secondary to actionable findings.
-
-Do not approve, merge, or auto-accept pull requests.
-`
+    templatePath: "skills/pr-review/SKILL.md"
   },
   {
     path: ".agents/skills/docs-sync/SKILL.md",
-    content: `---
-name: docs-sync
-description: Keep documentation aligned with user-facing code and workflow changes.
----
-
-# Docs Sync
-
-Use this skill when a code change may require documentation updates.
-
-## Workflow
-
-1. Identify user-facing behavior, CLI flags, config shape, and report output changes.
-2. Update README or docs pages alongside the code change.
-3. Keep limitations and skipped checks explicit.
-4. Verify examples still match the implemented behavior.
-`
+    templatePath: "skills/docs-sync/SKILL.md"
   },
   {
     path: ".github/workflows/maintainerbench.yml",
@@ -224,7 +183,8 @@ export async function runInitCommand(options: RunInitOptions = {}): Promise<Init
   const force = options.force === true;
   const files: InitFileResult[] = [];
 
-  for (const starterFile of starterFiles) {
+  for (const starterFileDefinition of starterFiles) {
+    const starterFile = await resolveStarterFile(starterFileDefinition);
     files.push(await applyStarterFile(root, starterFile, { dryRun, force }));
   }
 
@@ -234,9 +194,57 @@ export async function runInitCommand(options: RunInitOptions = {}): Promise<Init
   return result;
 }
 
+async function resolveStarterFile(starterFile: InitFileTemplate): Promise<InlineInitFileTemplate> {
+  if ("content" in starterFile) {
+    return starterFile;
+  }
+
+  return {
+    path: starterFile.path,
+    content: await readTemplateFile(starterFile.templatePath)
+  };
+}
+
+async function readTemplateFile(templatePath: string): Promise<string> {
+  const relativePath = normalizeSafeTemplatePath(templatePath);
+  const templatesRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../templates");
+  const absolutePath = path.resolve(templatesRoot, relativePath);
+
+  if (!isInsideRoot(templatesRoot, absolutePath)) {
+    throw new Error(`Refusing to read a template outside the templates directory: ${templatePath}`);
+  }
+
+  return readFile(absolutePath, "utf8");
+}
+
+function normalizeSafeTemplatePath(templatePath: string): string {
+  if (templatePath.includes("\0")) {
+    throw new Error("Refusing to use a template path containing a null byte.");
+  }
+
+  const portablePath = templatePath.replace(/\\/g, "/");
+
+  if (
+    portablePath.length === 0 ||
+    portablePath === "." ||
+    path.posix.isAbsolute(portablePath) ||
+    path.win32.isAbsolute(templatePath)
+  ) {
+    throw new Error(`Refusing to use unsafe template path: ${templatePath}`);
+  }
+
+  const normalized = path.posix.normalize(portablePath);
+
+  if (normalized === "." || normalized === ".." || normalized.startsWith("../")) {
+    throw new Error(`Refusing to use path traversal template path: ${templatePath}`);
+  }
+
+  return normalized;
+}
+
 async function applyStarterFile(
   root: string,
-  starterFile: InitFileTemplate,
+  starterFile: InlineInitFileTemplate,
   options: { readonly dryRun: boolean; readonly force: boolean }
 ): Promise<InitFileResult> {
   const relativePath = normalizeSafeRelativePath(starterFile.path);
