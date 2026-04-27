@@ -114,7 +114,7 @@ Final status values:
 
 ## Examples
 
-- `examples/ts-library`: small TypeScript package with a Vitest test and a MaintainerBench task.
+- [`examples/ts-library`](examples/ts-library/README.md): small TypeScript package with a runnable lint and eval demo using a fake agent.
 - `examples/python-package`: small dependency-free Python package with a unittest command and a MaintainerBench task.
 - `examples/fake-agents/add-ts-multiply.mjs`: fake agent command for testing eval without Codex or another model-backed agent.
 

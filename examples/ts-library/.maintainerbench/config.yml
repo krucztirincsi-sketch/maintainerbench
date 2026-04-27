@@ -1,0 +1,10 @@
+version: 1
+
+instructions: AGENTS.md
+
+tasks:
+  - .maintainerbench/tasks/add-multiply-helper.yml
+
+verify:
+  commands:
+    - pnpm --filter @maintainerbench/example-ts-library test
