@@ -8,12 +8,27 @@ MaintainerBench provides guardrails and reports. It does not guarantee security,
 
 ## Quickstart
 
-Package publishing is not configured yet. For local development:
+Local development from this repository:
 
 ```bash
 pnpm install
 pnpm build
 pnpm exec maintainerbench --help
+```
+
+Packed package usage without publishing:
+
+```bash
+pnpm --filter @maintainerbench/cli pack --pack-destination /tmp/maintainerbench-pack
+npm install -g /tmp/maintainerbench-pack/maintainerbench-cli-0.1.0.tgz
+maintainerbench --help
+```
+
+After the CLI is published to npm, npx-style usage is planned to work as:
+
+```bash
+npx @maintainerbench/cli --help
+npx @maintainerbench/cli init
 ```
 
 Initialize a repository:
@@ -129,6 +144,16 @@ Action inputs:
 - `agent-command`: reserved for future eval support and never run by the v0.1 action.
 - `fail-on`: `warning`, `high`, or `never`.
 
+## Publishing
+
+The `Release` workflow publishes the CLI package to npm. It is manual and defaults to a dry run:
+
+```text
+Actions -> Release -> Run workflow -> dry_run: true
+```
+
+To publish `@maintainerbench/cli`, set `dry_run: false`. The workflow requires an `NPM_TOKEN` repository secret and uses the `npm-publish` environment so maintainers can add environment protection rules in GitHub.
+
 ## Sample Report
 
 ```md
@@ -158,12 +183,12 @@ Action inputs:
 - No model API calls.
 - GitHub Action eval mode is not supported yet.
 - Eval is not a complete sandbox; commands can still access files permitted by the host operating system.
-- MaintainerBench does not approve, merge, push, deploy, publish, or auto-accept pull requests.
+- MaintainerBench runtime commands do not approve, merge, push, deploy, publish, or auto-accept pull requests. Publishing is only handled by the manual release workflow.
 - Reports show configured checks and risk findings; they do not prove correctness or security.
 
 ## Roadmap
 
-- Publish the CLI and action packaging.
+- Publish bundled GitHub Action release artifacts.
 - Expand task examples and fixtures.
 - Add a first-class `report` command.
 - Improve JSON schemas for CI and GitHub Action consumers.

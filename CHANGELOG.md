@@ -15,6 +15,7 @@ First public v0.1 release.
 - Worktree-based `maintainerbench eval` that runs an external `--agent-command`, runs verification commands, analyzes changed files, and produces a final `pass`, `fail`, or `needs-review` status.
 - Markdown and JSON eval reports under `.maintainerbench/runs/<run-id>/`.
 - GitHub Action package for CI lint mode.
+- Manual GitHub Actions release workflow for npm publishing of `@maintainerbench/cli`.
 - TypeScript and Python example targets with MaintainerBench task files.
 - Repo-local skill templates for code-change verification, pull request review, and docs synchronization.
 
@@ -23,7 +24,7 @@ First public v0.1 release.
 - MaintainerBench provides guardrails and benchmark reports. It does not guarantee security, correctness, or safe pull request acceptance.
 - Eval runs commands in a temporary git worktree, but it is not a complete process sandbox.
 - The v0.1 GitHub Action supports lint mode only and rejects eval mode.
-- MaintainerBench does not call model APIs, approve pull requests, merge, push, deploy, publish, or auto-accept changes.
+- MaintainerBench runtime commands do not call model APIs, approve pull requests, merge, push, deploy, publish, or auto-accept changes. npm publishing is only handled by the manual release workflow.
 
 ### Release Notes
 

@@ -207,14 +207,35 @@ async function resolveStarterFile(starterFile: InitFileTemplate): Promise<Inline
 
 async function readTemplateFile(templatePath: string): Promise<string> {
   const relativePath = normalizeSafeTemplatePath(templatePath);
-  const templatesRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../templates");
-  const absolutePath = path.resolve(templatesRoot, relativePath);
 
-  if (!isInsideRoot(templatesRoot, absolutePath)) {
-    throw new Error(`Refusing to read a template outside the templates directory: ${templatePath}`);
+  for (const templatesRoot of getTemplateRoots()) {
+    const absolutePath = path.resolve(templatesRoot, relativePath);
+
+    if (!isInsideRoot(templatesRoot, absolutePath)) {
+      throw new Error(`Refusing to read a template outside the templates directory: ${templatePath}`);
+    }
+
+    try {
+      return await readFile(absolutePath, "utf8");
+    } catch (error: unknown) {
+      if (isNodeErrorWithCode(error, "ENOENT")) {
+        continue;
+      }
+
+      throw error;
+    }
   }
 
-  return readFile(absolutePath, "utf8");
+  throw new Error(`Template file not found: ${templatePath}`);
+}
+
+function getTemplateRoots(): readonly string[] {
+  const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
+
+  return [
+    path.resolve(moduleDirectory, "../templates"),
+    path.resolve(moduleDirectory, "../../../../templates")
+  ];
 }
 
 function normalizeSafeTemplatePath(templatePath: string): string {

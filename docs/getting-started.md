@@ -6,7 +6,7 @@ MaintainerBench reports what it checked. It does not guarantee security, correct
 
 ## Install
 
-Package publishing is not configured yet. For local development from this repository:
+For local development from this repository:
 
 ```bash
 pnpm install

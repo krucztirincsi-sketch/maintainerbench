@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run publish in dry-run mode without uploading to npm.
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.31.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify package version
+        run: |
+          node -e "const root = require('./package.json'); const cli = require('./packages/cli/package.json'); if (root.version !== cli.version) { throw new Error('Root version ' + root.version + ' does not match CLI version ' + cli.version); } const ref = process.env.GITHUB_REF_NAME || ''; if (ref.startsWith('v') && ref.slice(1) !== cli.version) { throw new Error('Git ref ' + ref + ' does not match CLI version ' + cli.version); }"
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Run MaintainerBench self-lint
+        run: pnpm exec maintainerbench lint --json
+
+      - name: Dry-run npm publish
+        if: ${{ inputs.dry_run }}
+        working-directory: packages/cli
+        run: npm publish --access public --dry-run
+
+  publish-npm:
+    runs-on: ubuntu-latest
+    needs: verify
+    if: ${{ !inputs.dry_run }}
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.31.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Publish CLI package to npm
+        working-directory: packages/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
