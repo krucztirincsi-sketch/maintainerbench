@@ -43,7 +43,12 @@ risk:
     expect(await pathExists(path.join(repo, ".maintainerbench", "runs", "eval-success", "report.md"))).toBe(true);
     expect(await pathExists(path.join(repo, ".maintainerbench", "runs", "eval-success", "report.json"))).toBe(true);
 
-    const report = await readJsonReport(repo, "eval-success");
+    const jsonContent = await readJsonReportText(repo, "eval-success");
+    expect(() => JSON.parse(jsonContent)).not.toThrow();
+
+    const report = JSON.parse(jsonContent) as EvalReport;
+    const markdownReport = await readMarkdownReport(repo, "eval-success");
+
     expect(Object.keys(report)).toEqual([
       "schemaVersion",
       "runId",
@@ -54,6 +59,7 @@ risk:
       "elapsedMs",
       "worktree",
       "commands",
+      "summary",
       "changedFiles",
       "diffSummary",
       "riskFindings"
@@ -96,11 +102,25 @@ risk:
           }
         ]
       },
+      summary: {
+        commandCount: 3,
+        failedCommandCount: 0,
+        changedFileCount: 1,
+        riskFindingCount: 0,
+        highRiskFindingCount: 0
+      },
       changedFiles: ["feature.txt"],
       riskFindings: []
     });
     expect(typeof report.elapsedMs).toBe("number");
     expect(report.note).toContain("guardrails");
+    expect(markdownReport).toContain("> MaintainerBench provides guardrails and benchmark reports");
+    expect(markdownReport).toContain("## Setup Commands");
+    expect(markdownReport).toContain("## Agent Command");
+    expect(markdownReport).toContain("## Verify Commands");
+    expect(markdownReport).toContain("## Changed Files");
+    expect(markdownReport).toContain("- feature.txt");
+    expect(markdownReport).toContain("untracked | feature.txt");
   });
 
   it("fails when a verification command fails", async () => {
@@ -136,7 +156,10 @@ verify:
 
     expect(markdownReport).toContain("test -f missing.txt");
     expect(markdownReport).toContain("| Status | fail |");
+    expect(markdownReport).toContain("## Verify Commands");
+    expect(markdownReport).toContain("| test -f missing.txt | 1 | false |");
     expect(jsonReport.status).toBe("fail");
+    expect(jsonReport.summary.failedCommandCount).toBe(1);
     expect(jsonReport.commands.verify[0]).toMatchObject({
       command: "test -f missing.txt",
       exitCode: 1
@@ -179,8 +202,14 @@ risk:
     const jsonReport = await readJsonReport(repo, "eval-forbidden-file");
 
     expect(markdownReport).toContain("| needs-review |");
+    expect(markdownReport).toContain("| Risk findings | 1 total, 1 high |");
+    expect(markdownReport).toContain("| high | eval.forbidden-path | secret.txt | Changed forbidden path matching secret.txt. |");
     expect(markdownReport).toContain("eval.forbidden-path");
     expect(jsonReport.status).toBe("needs-review");
+    expect(jsonReport.summary).toMatchObject({
+      riskFindingCount: 1,
+      highRiskFindingCount: 1
+    });
     expect(jsonReport.riskFindings).toContainEqual({
       id: "eval.forbidden-path",
       level: "high",
@@ -292,8 +321,12 @@ risk:
   });
 });
 
+async function readJsonReportText(repo: string, runId: string): Promise<string> {
+  return readFile(path.join(repo, ".maintainerbench", "runs", runId, "report.json"), "utf8");
+}
+
 async function readJsonReport(repo: string, runId: string): Promise<EvalReport> {
-  const content = await readFile(path.join(repo, ".maintainerbench", "runs", runId, "report.json"), "utf8");
+  const content = await readJsonReportText(repo, runId);
   return JSON.parse(content) as EvalReport;
 }
 

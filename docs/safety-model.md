@@ -112,6 +112,8 @@ By default, eval removes the worktree and keeps:
 - `.maintainerbench/runs/<run-id>/report.md`
 - `.maintainerbench/runs/<run-id>/report.json`
 
+The JSON report uses `schemaVersion: 1` and includes grouped setup, agent, and verify command results, changed files, diff summary, risk findings, final status, elapsed time, and summary counts that future GitHub Action code can consume without parsing Markdown.
+
 Use `--keep-worktree` only when you need to inspect the generated worktree.
 
 ## What MaintainerBench Does Not Guarantee

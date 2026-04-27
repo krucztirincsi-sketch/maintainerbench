@@ -54,6 +54,13 @@ export interface EvalReport {
     readonly agent: EvalReportCommand | null;
     readonly verify: readonly EvalReportCommand[];
   };
+  readonly summary: {
+    readonly commandCount: number;
+    readonly failedCommandCount: number;
+    readonly changedFileCount: number;
+    readonly riskFindingCount: number;
+    readonly highRiskFindingCount: number;
+  };
   readonly changedFiles: readonly string[];
   readonly diffSummary: string;
   readonly riskFindings: readonly EvalRiskFinding[];
@@ -222,6 +229,7 @@ export function createEvalReport(result: EvalResult): EvalReport {
   const setupCommands = result.commandResults.filter((record) => record.stage === "setup").map(toReportCommand);
   const agentCommand = result.commandResults.find((record) => record.stage === "agent");
   const verifyCommands = result.commandResults.filter((record) => record.stage === "verify").map(toReportCommand);
+  const commandRows = [...setupCommands, ...(agentCommand === undefined ? [] : [toReportCommand(agentCommand)]), ...verifyCommands];
 
   return {
     schemaVersion: 1,
@@ -242,6 +250,13 @@ export function createEvalReport(result: EvalResult): EvalReport {
       setup: setupCommands,
       agent: agentCommand === undefined ? null : toReportCommand(agentCommand),
       verify: verifyCommands
+    },
+    summary: {
+      commandCount: commandRows.length,
+      failedCommandCount: commandRows.filter(isReportCommandFailure).length,
+      changedFileCount: result.changedFiles.length,
+      riskFindingCount: result.riskFindings.length,
+      highRiskFindingCount: result.riskFindings.filter((finding) => finding.level === "high").length
     },
     changedFiles: result.changedFiles,
     diffSummary: result.diffSummary,
@@ -266,40 +281,16 @@ export function renderEvalMarkdownReport(result: EvalResult): string {
     `| Agent command | ${escapeMarkdownTableCell(report.agentCommand)} |`,
     `| Elapsed | ${String(report.elapsedMs)}ms |`,
     `| Worktree | ${escapeMarkdownTableCell(`${report.worktree.path}${report.worktree.kept ? " (kept)" : " (removed)"}`)} |`,
-    "",
-    "## Commands",
-    "",
-    "| Stage | Command | Exit | Timed out | Duration |",
-    "| --- | --- | --- | --- | --- |"
+    `| Commands | ${String(report.summary.commandCount)} total, ${String(report.summary.failedCommandCount)} failed |`,
+    `| Changed files | ${String(report.summary.changedFileCount)} |`,
+    `| Risk findings | ${String(report.summary.riskFindingCount)} total, ${String(report.summary.highRiskFindingCount)} high |`
   ];
 
   const commandRows = [...report.commands.setup, ...(report.commands.agent === null ? [] : [report.commands.agent]), ...report.commands.verify];
-
-  if (commandRows.length === 0) {
-    lines.push("| - | - | - | - | - |");
-  } else {
-    for (const command of commandRows) {
-      lines.push(
-        `| ${command.stage} | ${escapeMarkdownTableCell(command.command)} | ${formatExitCode(command.exitCode)} | ${String(command.timedOut)} | ${String(command.durationMs)}ms |`
-      );
-    }
-  }
-
-  for (const command of commandRows) {
-    if (command.stdout.trim().length === 0 && command.stderr.trim().length === 0) {
-      continue;
-    }
-
-    lines.push("", `### ${command.stage}: ${command.command}`, "");
-
-    if (command.stdout.trim().length > 0) {
-      lines.push("stdout:", "", fencedText(command.stdout.trim()), "");
-    }
-
-    if (command.stderr.trim().length > 0) {
-      lines.push("stderr:", "", fencedText(command.stderr.trim()), "");
-    }
-  }
+  appendCommandTable(lines, "Setup Commands", report.commands.setup, "(none)");
+  appendCommandTable(lines, "Agent Command", report.commands.agent === null ? [] : [report.commands.agent], "(not run)");
+  appendCommandTable(lines, "Verify Commands", report.commands.verify, "(none)");
+  appendCommandOutputs(lines, commandRows);
 
   lines.push("", "## Changed Files", "");
 
@@ -328,6 +319,63 @@ export function renderEvalMarkdownReport(result: EvalResult): string {
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendCommandTable(lines: string[], title: string, commands: readonly EvalReportCommand[], emptyText: string): void {
+  lines.push("", `## ${title}`, "");
+
+  if (commands.length === 0) {
+    lines.push(emptyText);
+    return;
+  }
+
+  lines.push("| Command | Exit | Timed out | Duration |", "| --- | --- | --- | --- |");
+
+  for (const command of commands) {
+    lines.push(
+      `| ${escapeMarkdownTableCell(command.command)} | ${formatExitCode(command.exitCode)} | ${String(command.timedOut)} | ${String(command.durationMs)}ms |`
+    );
+  }
+}
+
+function appendCommandOutputs(lines: string[], commands: readonly EvalReportCommand[]): void {
+  const commandsWithOutput = commands.filter((command) => command.stdout.trim().length > 0 || command.stderr.trim().length > 0);
+
+  lines.push("", "## Command Output", "");
+
+  if (commandsWithOutput.length === 0) {
+    lines.push("(none)");
+    return;
+  }
+
+  for (const command of commandsWithOutput) {
+    const stageCommands = commands.filter((candidate) => candidate.stage === command.stage);
+    const stageIndex = stageCommands.indexOf(command) + 1;
+    lines.push(`### ${formatStageName(command.stage)} Command ${String(stageIndex)}`, "", "Command:", "", fencedText(command.command), "");
+
+    if (command.stdout.trim().length > 0) {
+      lines.push("stdout:", "", fencedText(command.stdout.trim()), "");
+    }
+
+    if (command.stderr.trim().length > 0) {
+      lines.push("stderr:", "", fencedText(command.stderr.trim()), "");
+    }
+  }
+}
+
+function formatStageName(stage: EvalCommandStage): string {
+  switch (stage) {
+    case "setup":
+      return "Setup";
+    case "agent":
+      return "Agent";
+    case "verify":
+      return "Verify";
+  }
+}
+
+function isReportCommandFailure(command: EvalReportCommand): boolean {
+  return command.timedOut || command.exitCode !== 0;
 }
 
 async function writeEvalReports(result: EvalResult): Promise<void> {

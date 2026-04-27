@@ -267,3 +267,7 @@ verify:
 ## Report Output
 
 Eval writes `report.md` and `report.json` under `.maintainerbench/runs/<run-id>/`. Reports include the task id and title, agent command, setup/agent/verify command results, changed files, diff summary, risk findings, final status, elapsed time, and a note that MaintainerBench provides guardrails rather than guaranteed security.
+
+The JSON report uses `schemaVersion: 1` and keeps setup, agent, and verify command results in separate fields under `commands`. It also includes summary counts for commands, failed commands, changed files, total risk findings, and high risk findings so CI and GitHub Action consumers can make simple decisions without parsing Markdown.
+
+The Markdown report is intended for maintainers. It uses a summary table, separate command tables for setup/agent/verify, changed files, diff summary, command output, and risk finding tables.
